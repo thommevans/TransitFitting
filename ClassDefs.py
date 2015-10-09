@@ -7,11 +7,7 @@ class MultiBand():
     """
 
     def __init__( self ):
-        self.raw_input_data_file = ''
-        self.white_lc_path = ''
-        # Limb darkening coefficients must be provided:
-        self.ld_type = ''
-        self.ld_coeffs = {}
+        # default attributes?
         return None
 
     def prep_white_lc( self ):
@@ -30,6 +26,10 @@ class MultiBand():
 
     def mle( self ):
         # todo - should handle white and spec
+        if self.lc_type=='white':
+            MultiBandRoutines.white_mle( self )
+        else:
+            pdb.set_trace()
         return None
 
     def mcmc( self ):
