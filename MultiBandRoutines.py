@@ -124,9 +124,11 @@ def white_mcmc( MultiBand ):
         mle_refined[key] = mp.model.free[key].value
 
     MultiBand.walker_chains = walker_chains
-    MultiBand.acor_func = acor_func
-    MultiBand.acor_integ = acor_integ
+    MultiBand.acor_funcs = acor_funcs
+    MultiBand.acor_integs = acor_integs
     MultiBand.mle_refined = mle_refined
+
+    MultiBand.freepars = mcmc.model.free.keys()
 
     return None
 
