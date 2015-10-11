@@ -4,6 +4,7 @@ import MultiBandRoutines
 
 class MultiBand():
     """
+    Intended for spectroscopic transit datasets...
     """
 
     def __init__( self ):
@@ -13,7 +14,7 @@ class MultiBand():
     def prep_white_lc( self ):
         # requires hst.input_data_file to exist already, 
         # which contains variables auxvars, spectra, wavsol_micron at least.
-        MultiBandRoutines.white_lc( self ) # adapt from the lc_white_stis() and lc_white_wfc3() routines...
+        MultiBandRoutines.white_lc( self )
         return None
 
     def prep_spectra( self ):
@@ -25,7 +26,7 @@ class MultiBand():
         return None
 
     def mle( self ):
-        # todo - should handle white and spec
+        # todo - should probably handle both white and spec with a single backend routine
         if self.lc_type=='white':
             MultiBandRoutines.white_mle( self )
         else:
@@ -37,4 +38,3 @@ class MultiBand():
         return None
 
 
-# then define the same kind of class for WFC3...

@@ -9,73 +9,26 @@ def white_mle( MultiBand ):
 
     ntrials = MultiBand.mle_ntrials
     mbundle = MultiBand.mbundle
-    #syspars = MultiBand.syspars
-    par_ranges = MultiBand.par_ranges
+    par_ranges = MultiBand.par_ranges # initial starting ranges to sample randomly from
 
     # Initialise the walker values in a tight Gaussian ball centered 
     # at the maximum likelihood location:
     mp = pyhm.MAP( mbundle )
 
-    # Do a simple linear trend plus transit fit to start:
-    from planetc import transit    
-    syspars = mbundle['syspars']
-    Tmid_guess = syspars['T0']
-    jd=mbundle['jd']
-    t=(jd-np.mean(jd))/np.std(jd)
-    def rms_func( pars ):
-        syspars['RpRs'] = pars[0]
-        syspars['T0'] = Tmid_guess + pars[1]
-        psignal = transit.ma02_aRs( jd, **syspars )
-        baseline = pars[2] + pars[3]*t
-        resids = mbundle['flux_vals'] - baseline*psignal
-        rms = np.sqrt( np.mean( resids**2. ) )
-        return rms
-    pars0 = [ syspars['RpRs'], 0, 1, 0 ]
-    pars_fit = scipy.optimize.fmin( rms_func, pars0 )
-    RpRs_init = pars_fit
-    print '\nResults of simple preliminary MLE fit:'
-    for key in mp_simple.model.free.keys():
-        print key, mp_simple.model.free[key].value
-    pdb.set_trace()
     print '\nRunning MLE trials:'
     mle_trial_results = []
     trial_logps = np.zeros( ntrials )
     for i in range( ntrials ):
         print '\n ... trial {0} of {1}'.format( i+1, ntrials )
-        mle_ok = False
-        while mle_ok==False:
-            # Install the best fit parameters from the simple model
-            # as starting guesses for the actual fit below:
-            #if model!=1: # assuming we're not doing the simple linear-time-trend fit
-                #for key in mp_simple.model.free.keys():
-                #    try:
-                #        mp.model.free[key].value = mp_simple.model.free[key].value
-                #    except:
-                #        pass
-                # However, lets ensure the planet parameters we start
-                # with are roughly what we expect:
-                #mp.RpRs.value = 0.1205+0.0010*np.random.random()
-                #if orbpars=='free':
-                #    mp.aRs.value = 8.75+0.1*np.random.random()
-                #    mp.b.value = 0.499+0.002*np.random.random()
-                #elif orbpars=='prior':
-                #    mp.aRs.value = mp.aRs.random()
-                #    mp.b.value = mp.b.random()
-                #mp.beta.value = 0.5*np.random.random()
-                #mp.delT.value = mp_simple.delT.value
-                #mp.foot.value = 1
-                #mp.tgrad.value = 0
-                # Install reasonable starting values for the cpars:
-                #for key in cpar_ranges.keys():
-                #    mp.model.free[key].value = cpar_ranges[key].random()
+            print '\nInitial values:'
             for key in mp.model.free.keys():
                 mp.model.free[key].value = par_ranges[key].random()
+                print key, mp.model.free[key].value
             mp.fit( xtol=1e-4, ftol=1e-4, maxfun=10000, maxiter=10000 )
             print 'Fit results:'
             for key in mp.model.free.keys():
                 print key, mp.model.free[key].value
             print 'logp = {0}'.format( mp.logp() )
-            pdb.set_trace()
             if np.isfinite( mp.logp() ):
                 # If the fit has nonzero finite probability, proceed:
                 mle_ok = True
@@ -104,7 +57,7 @@ def white_mle( MultiBand ):
     print 'logp', trial_logps[ix]
     print '{0}\n'.format( 50*'#' )
 
-    return mle_vals
+    MultiBand.mle_vals = mle_vals
 
     return None
 
