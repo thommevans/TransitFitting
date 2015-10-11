@@ -26,7 +26,7 @@ class MultiBand():
         return None
 
     def mle( self ):
-        # todo - should probably handle both white and spec with a single backend routine
+        # todo - should probably handle both white and spec with a single backend routine?
         if self.lc_type=='white':
             MultiBandRoutines.white_mle( self )
         else:
@@ -34,7 +34,12 @@ class MultiBand():
         return None
 
     def mcmc( self ):
-        # todo - should handle white and spec
+        # todo - should probably handle both white and spec with a single backend routine?
+        if self.lc_type=='white':
+            MultiBandRoutines.white_mcmc( self )
+        else:
+            pdb.set_trace()
+
         return None
 
 
