@@ -139,7 +139,7 @@ def white_lc( MultiBand ):
     auxvars = MultiBand.auxvars
     spectra = MultiBand.spectra
     wavsol_micron = MultiBand.wavsol_micron
-    
+
     # Integrate over the dispersion axis...
     print '\nBinning the lightcurve...'
     nframes, ndisp = np.shape( spectra )
@@ -181,8 +181,9 @@ def white_lc( MultiBand ):
         cutoff_micron = wavsol_micron.max()
     MultiBand.wavsol_micron = wavsol_micron
     MultiBand.auxvars = auxvars
-    MultiBand.white_lc_flux = white_lc_flux
-    MultiBand.white_lc_uncs = white_lc_uncs
+    white_lc_flux_norm = white_lc_flux[0]
+    MultiBand.white_lc_flux = white_lc_flux/white_lc_flux_norm
+    MultiBand.white_lc_uncs = white_lc_uncs/white_lc_flux_norm
     MultiBand.cuton_micron = cuton_micron
     MultiBand.cutoff_micron = cutoff_micron
 
