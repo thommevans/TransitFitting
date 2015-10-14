@@ -55,6 +55,71 @@ def white_mle( MultiBand ):
     return None
 
 
+def spec_lcs( MultiBand ):
+    """
+    Need to have dspec and white_psignal provided before passing in here.
+    Assumes that dspec has already been trimmed along the dispersion axis,
+    so it starts at ix=0. Need to provide npix_perbin.
+
+    Need to calculate the ld elsewhere outside after this routine has 
+    been run, using the wavedges for the channels that get recorded here.
+    """
+    
+    wavsol_micron = MultiBand.wavsol_micron
+    dspec = MultiBand.dspec
+    white_psignal = MultiBand.white_psignal
+    npix_perbin = MultiBand.npix_perbin
+
+    # Construct the spectroscopic lightcurves using data that is 
+    # contained within the range defined by disp_bound_ixs:
+    nframes, nlam = np.shape( dspec )
+    wav_edges = []
+    wav_centers = []
+    spec_lc_flux = []
+    spec_lc_uncs = []
+    ld_nonlin = []
+    ld_quad = []
+    terminate = False
+    counter = 0
+    while terminate==False:
+        # Get the wavelength range for the 
+        # current spectroscopic channel:
+        a = counter*npix_perbin
+        #b = min( [ a+npix_perbin, nlam-2 ] )
+        b = min( [ a+npix_perbin, nlam-1 ] )
+        if b<=a:
+            terminate = True
+            continue
+        wav_edges += [ [ wavsol[a], wavsol[b] ] ]
+        wav_centers += [ 0.5*( wavsol[a] + wavsol[b] ) ]
+        # Bin the differential fluxes over the current channel:
+        dspec_binned = np.mean( dspec[:,a:b+1], axis=1 )
+        # Since the differential fluxes correspond to the raw spectroscopic
+        # fluxes corrected for wavelength-common-mode systematics minus the 
+        # white transit, we simply add back in the white transit signal to
+        # obtain the systematics-corrected spectroscopic lightcurve:
+        spec_lc_flux += [ dspec_binned + white_psignal ]
+        # Computed the binned uncertainties for the wavelength channel:
+        enoise_binned = np.mean( enoise[:,a:b+1], axis=1 )/np.sqrt( float( b-a ) )
+        spec_lc_uncs += [ enoise_binned ]
+        # Proceed to next channel if required:
+        counter += 1
+        if b+1>=nlam:
+            terminate = True
+    # Convert variables into arrays:
+    MultiBand.wav_centers = np.array( [ wav_centers ] ).T
+    MultiBand.wav_edges = np.column_stack( wav_edges ).T
+    MultiBand.spec_lc_flux = np.column_stack( spec_lc_flux )
+    MultiBand.spec_lc_uncs = np.column_stack( spec_lc_uncs )
+    nframes, nchannels = np.shape( spec_lc_flux )
+    MultiBand.nframes = nframes
+    MultiBand.nchannels = nchannels
+
+
+    return None
+
+
+
 def white_mcmc( MultiBand ):
 
     mbundle = MultiBand.mbundle
@@ -134,10 +199,10 @@ def white_mcmc( MultiBand ):
 
 def white_lc( MultiBand ):
 
-    cuton_micron = MultiBand.cuton_micron
-    cutoff_micron = MultiBand.cutoff_micron
+    cuton_micron = MultiBand.cuton_micron # need this??
+    cutoff_micron = MultiBand.cutoff_micron # need this??
     auxvars = MultiBand.auxvars
-    spectra = MultiBand.spectra
+    spectra = MultiBand.spectra # SHOULD BE TRIMMED PRIOR TO PASSING IN!
     wavsol_micron = MultiBand.wavsol_micron
 
     # Integrate over the dispersion axis...

@@ -21,8 +21,9 @@ class MultiBand():
         # uses the white mle to identify out-of-tr
         return None
 
-    def prep_spec_lc( self ):
+    def prep_spec_lcs( self ):
         # should this just handle one channel at a time?
+        MultiBandRoutines.spec_lcs( self )
         return None
 
     def mle( self ):
