@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 import scipy.optimize
 from bayes.pyhm_dev import pyhm
 
-def white_mle( MultiBand ):
+
+
+def mle( MultiBand ):
 
     ntrials = MultiBand.mle_ntrials
     mbundle = MultiBand.mbundle
@@ -55,6 +57,67 @@ def white_mle( MultiBand ):
     return None
 
 
+def spec_mle( MultiBand, channel_ixs='all' ):
+
+    ntrials = MultiBand.mle_ntrials
+    mbundle = MultiBand.mbundle
+    par_ranges = MultiBand.par_ranges # initial starting ranges to sample randomly from
+    spec_lc_flux = MultiBand.spec_lc_flux
+    spec_lc_uncs = MultiBand.spec_lc_uncs
+    nframes, nchannels = np.shape( spec_lc_flux )
+
+    if channel_ixs=='all':
+        channel_ixs = np.arange( nchannels )
+    nmle = len( channel_ixs )
+
+    for j in range( nmle ):
+        ix = channel_ixs[j]
+        
+
+        # Initialise the walker values in a tight Gaussian ball centered 
+        # at the maximum likelihood location:
+        mp = pyhm.MAP( mbundle )
+
+        print '\nRunning MLE trials:'
+        mle_trial_results = []
+        trial_logps = np.zeros( ntrials )
+        for i in range( ntrials ):
+            print '\n ... trial {0} of {1}'.format( i+1, ntrials )
+            mle_ok = False
+            while mle_ok==False:
+                startpos_ok_mle = False
+                while startpos_ok_mle==False:
+                    for key in mp.model.free.keys():
+                        mp.model.free[key].value = par_ranges[key].random()
+                    if np.isfinite( mp.logp() )==True:
+                        startpos_ok_mle = True
+                mp.fit( xtol=1e-4, ftol=1e-4, maxfun=10000, maxiter=10000 )
+                print 'Fit results:'
+                for key in mp.model.free.keys():
+                    print key, mp.model.free[key].value
+                print 'logp = {0}'.format( mp.logp() )
+                if np.isfinite( mp.logp() ):
+                    # If the fit has nonzero finite probability, proceed:
+                    mle_ok = True
+            mle_trial_results_i = {}
+            for key in mp.model.free.keys():
+                mle_trial_results_i[key] = mp.model.free[key].value
+            mle_trial_results += [ mle_trial_results_i ]
+            trial_logps[i] = mp.logp()
+        ix = np.argmax( trial_logps )
+        mle_vals = {}
+        print '\n{0}\nBest MLE solution:'.format( 50*'#' )
+        for key in mp.model.free.keys():
+            mle_vals[key] = mle_trial_results[ix][key]
+            print key, mle_vals[key]
+        print 'logp', trial_logps[ix]
+        print '{0}\n'.format( 50*'#' )
+
+    MultiBand.mle_vals = mle_vals
+
+    return None
+
+
 def spec_lcs( MultiBand ):
     """
     Need to have dspec and white_psignal provided before passing in here.
@@ -67,6 +130,7 @@ def spec_lcs( MultiBand ):
     
     wavsol_micron = MultiBand.wavsol_micron
     dspec = MultiBand.dspec
+    enoise = MultiBand.enoise
     white_psignal = MultiBand.white_psignal
     npix_perbin = MultiBand.npix_perbin
 
@@ -77,8 +141,6 @@ def spec_lcs( MultiBand ):
     wav_centers = []
     spec_lc_flux = []
     spec_lc_uncs = []
-    ld_nonlin = []
-    ld_quad = []
     terminate = False
     counter = 0
     while terminate==False:
@@ -90,8 +152,8 @@ def spec_lcs( MultiBand ):
         if b<=a:
             terminate = True
             continue
-        wav_edges += [ [ wavsol[a], wavsol[b] ] ]
-        wav_centers += [ 0.5*( wavsol[a] + wavsol[b] ) ]
+        wav_edges += [ [ wavsol_micron[a], wavsol_micron[b] ] ]
+        wav_centers += [ 0.5*( wavsol_micron[a] + wavsol_micron[b] ) ]
         # Bin the differential fluxes over the current channel:
         dspec_binned = np.mean( dspec[:,a:b+1], axis=1 )
         # Since the differential fluxes correspond to the raw spectroscopic
@@ -111,15 +173,14 @@ def spec_lcs( MultiBand ):
     MultiBand.wav_edges = np.column_stack( wav_edges ).T
     MultiBand.spec_lc_flux = np.column_stack( spec_lc_flux )
     MultiBand.spec_lc_uncs = np.column_stack( spec_lc_uncs )
-    nframes, nchannels = np.shape( spec_lc_flux )
+    nframes, nchannels = np.shape( MultiBand.spec_lc_flux )
     MultiBand.nframes = nframes
     MultiBand.nchannels = nchannels
-
 
     return None
 
 
-
+# THIS IS THE OLD ROUTINE
 def white_mcmc( MultiBand ):
 
     mbundle = MultiBand.mbundle
@@ -196,6 +257,85 @@ def white_mcmc( MultiBand ):
     MultiBand.freepars = mcmc.model.free.keys()
 
     return None
+
+
+def mcmc( MultiBand ):
+
+    mbundle = MultiBand.mbundle
+    par_ranges = MultiBand.par_ranges
+    nchains = MultiBand.nchains
+    nsteps = MultiBand.nsteps
+    nwalkers = MultiBand.nwalkers
+
+    # Initialise the emcee sampler:
+    mcmc = pyhm.MCMC( MultiBand.mbundle )
+    mcmc.assign_step_method( pyhm.BuiltinStepMethods.AffineInvariant )
+
+    # Sample for each chain, i.e. group of walkers:
+    walker_chains = []
+    acor_funcs = []
+    acor_integs = []
+    print '\nRunning the MCMC sampling:'
+    for i in range( nchains ):
+        print '\n... chain {0} of {1}'.format( i+1, nchains )
+        init_walkers = {}
+        for key in mcmc.model.free.keys():
+            init_walkers[key] = np.zeros( nwalkers )
+        for i in range( nwalkers ):
+            for key in mcmc.model.free.keys():
+                startpos_ok = False
+                counter = 0
+                while startpos_ok==False:
+                    startpos = par_ranges[key].random()
+                    mcmc.model.free[key].value = startpos
+                    if np.isfinite( mcmc.model.free[key].logp() )==True:
+                        startpos_ok = True
+                    else:
+                        counter += 1
+                    if counter>100:
+                        print '\n\nTrouble initialising walkers!\n\n'
+                        for key in mcmc.model.free.keys():
+                            print key, mcmc.model.free[key].value, mcmc.model.free[key].logp()
+                        pdb.set_trace()
+                init_walkers[key][i] = startpos
+
+        # Run the sampling:
+        t1 = time.time()
+        mcmc.sample( nsteps=nsteps, init_walkers=init_walkers, verbose=False )
+        t2 = time.time()
+        print 'Done. Time taken = {0:.2f} minutes'.format( ( t2-t1 )/60. )
+        acor_func, acor_integ = pyhm.walker_chain_autocorr( mcmc.walker_chain, nburn=None, maxlag=50 )
+
+        print '\nIntegrated correlation times (total/corr):'
+        for key in acor_integ.keys():
+            print '{0} --> {1:.2f} ({2:.2f})'.format( key, acor_integ[key], float( nsteps )/acor_integ[key] )
+    
+        walker_chains += [ mcmc.walker_chain ]
+        acor_funcs += [ acor_func ]
+        acor_integs += [ acor_integ ]
+
+    # Refine the best-fit solution and make a plot:
+    mp = pyhm.MAP( mbundle )
+    ix = np.argmax( mcmc.walker_chain['logp'] )
+    ix = np.unravel_index( ix, mcmc.walker_chain['logp'].shape )
+    for key in mp.model.free.keys():
+        mp.model.free[key].value = mcmc.walker_chain[key][ix]
+    print '\nRefining the best-fit solution to produce plot...'
+    mp.fit( xtol=1e-4, ftol=1e-4, maxfun=10000, maxiter=10000 )
+    print 'Done.'
+    mle_refined = {}
+    for key in mp.model.free.keys():
+        mle_refined[key] = mp.model.free[key].value
+
+    MultiBand.walker_chains = walker_chains
+    MultiBand.acor_funcs = acor_funcs
+    MultiBand.acor_integs = acor_integs
+    MultiBand.mle_refined = mle_refined
+
+    MultiBand.freepars = mcmc.model.free.keys()
+
+    return None
+
 
 def white_lc( MultiBand ):
 

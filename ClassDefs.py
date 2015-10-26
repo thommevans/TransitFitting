@@ -9,6 +9,18 @@ class MultiBand():
 
     def __init__( self ):
         # default attributes?
+        self.lc_type = ''
+        self.dspec = None
+        self.enoise = None
+        self.npix_perbin = None
+        self.auxvars = {}
+        self.wav_centers = None
+        self.wav_edges = None
+        self.spec_lc_flux = None
+        self.spec_lc_uncs = None
+        self.ld_quad = None
+        self.ld_nonlin = None
+
         return None
 
     def prep_white_lc( self ):
@@ -27,14 +39,14 @@ class MultiBand():
         return None
 
     def mle( self ):
-        # todo - should probably handle both white and spec with a single backend routine?
-        if self.lc_type=='white':
-            MultiBandRoutines.white_mle( self )
-        else:
-            pdb.set_trace()
+        MultiBandRoutines.mle( self )
         return None
 
     def mcmc( self ):
+        MultiBandRoutines.mcmc( self )
+        return None
+
+    def mcmc_old( self ):
         # todo - should probably handle both white and spec with a single backend routine?
         if self.lc_type=='white':
             MultiBandRoutines.white_mcmc( self )
