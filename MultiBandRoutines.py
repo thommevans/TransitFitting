@@ -254,6 +254,7 @@ def white_mcmc( MultiBand ):
     mle_refined = {}
     for key in mp.model.free.keys():
         mle_refined[key] = mp.model.free[key].value
+    mle_refined['logp'] = mp.logp()
 
     MultiBand.walker_chains = walker_chains
     MultiBand.acor_funcs = acor_funcs
@@ -332,6 +333,7 @@ def mcmc( MultiBand ):
     mle_refined = {}
     for key in mp.model.free.keys():
         mle_refined[key] = mp.model.free[key].value
+    mle_refined['logp'] = mp.logp()
 
     MultiBand.walker_chains = walker_chains
     MultiBand.acor_funcs = acor_funcs
