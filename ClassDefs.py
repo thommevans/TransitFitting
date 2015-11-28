@@ -10,10 +10,12 @@ class MultiBand():
     def __init__( self ):
         # default attributes?
         self.lc_type = ''
+        self.spectra = None
         self.dspec = None
         self.enoise = None
         self.npix_perbin = None
         self.auxvars = {}
+        self.shiftstretch = False
         self.wav_centers = None
         self.wav_edges = None
         self.spec_lc_flux = None

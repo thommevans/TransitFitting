@@ -129,6 +129,7 @@ def spec_lcs( MultiBand ):
     """
     
     wavsol_micron = MultiBand.wavsol_micron
+    spectra = MultiBand.spectra
     dspec = MultiBand.dspec
     enoise = MultiBand.enoise
     white_psignal = MultiBand.white_psignal
@@ -154,17 +155,22 @@ def spec_lcs( MultiBand ):
             continue
         wav_edges += [ [ wavsol_micron[a], wavsol_micron[b] ] ]
         wav_centers += [ 0.5*( wavsol_micron[a] + wavsol_micron[b] ) ]
-        # Bin the differential fluxes over the current channel:
-        dspec_binned = np.mean( dspec[:,a:b+1], axis=1 )
-        # Since the differential fluxes correspond to the raw spectroscopic
-        # fluxes corrected for wavelength-common-mode systematics minus the 
-        # white transit, we simply add back in the white transit signal to
-        # obtain the systematics-corrected spectroscopic lightcurve:
-        spec_lc_flux += [ dspec_binned + white_psignal ]
-        # Computed the binned uncertainties for the wavelength channel:
-        enoise_binned = np.mean( enoise[:,a:b+1], axis=1 )/np.sqrt( float( b-a ) )
-        spec_lc_uncs += [ enoise_binned ]
-        # Proceed to next channel if required:
+        if MultiBand.shiftstretch==True:
+            # Bin the differential fluxes over the current channel:
+            dspec_binned = np.mean( dspec[:,a:b+1], axis=1 )
+            # Since the differential fluxes correspond to the raw spectroscopic
+            # fluxes corrected for wavelength-common-mode systematics minus the 
+            # white transit, we simply add back in the white transit signal to
+            # obtain the systematics-corrected spectroscopic lightcurve:
+            spec_lc_flux += [ dspec_binned + white_psignal ]
+            # Computed the binned uncertainties for the wavelength channel:
+            enoise_binned = np.mean( enoise[:,a:b+1], axis=1 )/np.sqrt( float( b-a ) )
+            spec_lc_uncs += [ enoise_binned ]
+        else:
+            spec_lc_flux += [ np.sum( spectra[:,a:b+1], axis=1 ) ]
+            spec_lc_uncs += [ np.sqrt( spec_lc_flux[-1] ) ]
+
+       # Proceed to next channel if required:
         counter += 1
         if b+1>=nlam:
             terminate = True
@@ -350,8 +356,10 @@ def white_lc( MultiBand ):
     nframes, ndisp = np.shape( spectra )
     ninterp = ndisp*1000
     wavsol_micron_f = np.r_[ wavsol_micron.min():wavsol_micron.max():1j*ninterp ]
-    dwav = np.median( np.diff( wavsol_micron_f ) ) # in microns
-    dwav_pix = ndisp*dwav/( wavsol_micron.max()-wavsol_micron.min() ) # in pixels
+    # Increment in microns on the super-sampled fine grid:
+    dwavf = np.median( np.diff( wavsol_micron_f ) )
+    # Increment in pixel units on the super-sampled fine grid:
+    dwavf_pix = ndisp*dwavf/( wavsol_micron.max()-wavsol_micron.min() ) # in pixels
     white_lc_flux = np.zeros( nframes )
     white_lc_uncs = np.zeros( nframes )
     for j in range( nframes ):
@@ -366,20 +374,22 @@ def white_lc( MultiBand ):
         flux_full_f = np.sum( spectrum_f[ixs_full] )
         flux_full_native = np.sum( spectrum_j[ixs_full_native] )
         if cuton_micron>wav_micron_f.min():
-            low_frac = ( wav_micron_full.min() - cuton_micron )/float( dwav )
+            low_frac = ( wav_micron_full.min() - cuton_micron )/float( dwavf )
             ixs_low = ( wav_micron_j<cuton_micron )
             flux_lowedge_f = low_frac*spectrum_f[ixs_low][-1]
         else:
             flux_lowedge_f = 0
         if cutoff_micron<wav_micron_f.max():
-            upp_frac = ( cutoff_micron - wav_micron_full.max() )/float( dwav )
+            upp_frac = ( cutoff_micron - wav_micron_full.max() )/float( dwavf )
             ixs_upp = ( wav_micron_j>cutoff_micron )
             flux_uppedge_f = upp_frac*spectrum_f[ixs_upp][0]
         else:
             flux_uppedge_f = 0
-        white_lc_flux[j] = dwav_pix*( flux_full_f + flux_lowedge_f + flux_uppedge_f )
+        # Because the flux is in units of electrons per pixel, and seeing as we're
+        # summing on a super-sampled fine grid, we need to multiply by dwavf_pix 
+        # to ensure that the final flux value remains in electrons:
+        white_lc_flux[j] = dwavf_pix*( flux_full_f + flux_lowedge_f + flux_uppedge_f )
         white_lc_uncs[j] = np.sqrt( white_lc_flux[j] )
-
     if cuton_micron<wavsol_micron.min():
         cuton_micron = wavsol_micron.min()
     if cutoff_micron>wavsol_micron.max():
