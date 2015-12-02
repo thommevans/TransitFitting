@@ -134,6 +134,7 @@ def spec_lcs( MultiBand ):
     enoise = MultiBand.enoise
     white_psignal = MultiBand.white_psignal
     npix_perbin = MultiBand.npix_perbin
+    npix_perbin_min = MultiBand.npix_perbin_min
 
     # Construct the spectroscopic lightcurves using data that is 
     # contained within the range defined by disp_bound_ixs:
@@ -144,13 +145,14 @@ def spec_lcs( MultiBand ):
     spec_lc_uncs = []
     terminate = False
     counter = 0
+    
     while terminate==False:
         # Get the wavelength range for the 
         # current spectroscopic channel:
         a = counter*npix_perbin
         #b = min( [ a+npix_perbin, nlam-2 ] )
         b = min( [ a+npix_perbin, nlam-1 ] )
-        if b<=a:
+        if ( b<=a )+( b-a+1<npix_perbin_min ):
             terminate = True
             continue
         wav_edges += [ [ wavsol_micron[a], wavsol_micron[b] ] ]
