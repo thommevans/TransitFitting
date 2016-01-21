@@ -329,7 +329,7 @@ def mcmc( MultiBand ):
     ix = np.unravel_index( ix, mcmc.walker_chain['logp'].shape )
     for key in mp.model.free.keys():
         mp.model.free[key].value = mcmc.walker_chain[key][ix]
-    print '\nRefining the best-fit solution to produce plot...'
+    print '\nRefining the best-fit solution...'
     mp.fit( xtol=1e-4, ftol=1e-4, maxfun=10000, maxiter=10000 )
     print 'Done.'
     mle_refined = {}
