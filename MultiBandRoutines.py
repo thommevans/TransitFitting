@@ -400,7 +400,8 @@ def white_lc( MultiBand ):
         cutoff_micron = wavsol_micron.max()
     MultiBand.wavsol_micron = wavsol_micron
     MultiBand.auxvars = auxvars
-    white_lc_flux_norm = white_lc_flux[0]
+    white_lc_flux_norm = 1 # I don't think lightcurves should be normalised here
+    #white_lc_flux_norm = white_lc_flux[0]    
     MultiBand.white_lc_flux = white_lc_flux/white_lc_flux_norm
     MultiBand.white_lc_uncs = white_lc_uncs/white_lc_flux_norm
     MultiBand.cuton_micron = cuton_micron
